@@ -5,8 +5,7 @@ import com.spydnel.backpacks.registry.BPSounds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.world.Container;
-import net.minecraft.world.Containers;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -110,15 +109,35 @@ public class BackpackBlock extends BaseEntityBlock implements Equipable, EntityB
         }
     }
 
+    @Override
+    public void playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (blockEntity instanceof BackpackBlockEntity backpackBlockEntity) {
+            if (!level.isClientSide && !player.isCreative()) {
+                ItemStack itemStack = new ItemStack(this);
+
+                CompoundTag blockEntityTag = backpackBlockEntity.saveWithoutMetadata();
+                blockEntityTag.remove("Color");
+                if (!blockEntityTag.isEmpty()) {
+                    itemStack.getOrCreateTag().put("BlockEntityTag", blockEntityTag);
+                }
+
+                int color = backpackBlockEntity.getColor();
+                if (color != 0) {
+                    itemStack.getOrCreateTagElement("display").putInt("color", color);
+                }
+
+                ItemEntity itemEntity = new ItemEntity(level, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, itemStack);
+                itemEntity.setDefaultPickUpDelay();
+                level.addFreshEntity(itemEntity);
+            }
+        }
+        super.playerWillDestroy(level, pos, state, player);
+    }
+
     @SuppressWarnings("deprecation")
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
-        if (!state.is(newState.getBlock())) {
-            BlockEntity blockEntity = level.getBlockEntity(pos);
-            if (blockEntity instanceof Container container) {
-                Containers.dropContents(level, pos, container);
-            }
-        }
         super.onRemove(state, level, pos, newState, isMoving);
     }
 
