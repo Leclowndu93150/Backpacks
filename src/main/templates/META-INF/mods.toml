@@ -58,15 +58,15 @@ config="${mod_id}.mixins.json"
 # The coremods config file path is not configurable and is always loaded from META-INF/coremods.json
 
 [[dependencies.${mod_id}]]
-    modId="neoforge"
-    type="required"
+    modId="forge"
+    mandatory = true
     versionRange="${neo_version_range}"
     ordering="NONE"
     side="BOTH"
 
 [[dependencies.${mod_id}]]
     modId="minecraft"
-    type="required"
+    mandatory = true
     versionRange="${minecraft_version_range}"
     ordering="NONE"
     side="BOTH"

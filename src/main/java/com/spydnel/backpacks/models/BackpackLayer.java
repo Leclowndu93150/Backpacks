@@ -3,6 +3,7 @@ package com.spydnel.backpacks.models;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
+import com.spydnel.backpacks.BackpackWearer;
 import com.spydnel.backpacks.Backpacks;
 import com.spydnel.backpacks.registry.BPItems;
 import com.spydnel.backpacks.registry.BPLayers;
@@ -15,29 +16,25 @@ import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.FastColor;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.DyedItemColor;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
-import net.neoforged.fml.ModList;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.fml.ModList;
 import org.figuramc.figura.avatar.Avatar;
 import org.figuramc.figura.avatar.AvatarManager;
 import org.figuramc.figura.model.ParentType;
-
-import static com.spydnel.backpacks.registry.BPDataAttatchments.OPEN_COUNT;
-import static com.spydnel.backpacks.registry.BPDataAttatchments.OPEN_TICKS;
 
 @OnlyIn(Dist.CLIENT)
 public class BackpackLayer<T extends LivingEntity, M extends HumanoidModel<T>> extends RenderLayer<T, M>{
     private final ModelPart model;
     private final ModelPart parentBody;
-    private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(Backpacks.MODID, "textures/model/backpack.png");
-    private static final ResourceLocation OVERLAY_TEXTURE = ResourceLocation.fromNamespaceAndPath(Backpacks.MODID, "textures/model/backpack_overlay.png");
+    private static final ResourceLocation TEXTURE = new ResourceLocation(Backpacks.MODID, "textures/model/backpack.png");
+    private static final ResourceLocation OVERLAY_TEXTURE = new ResourceLocation(Backpacks.MODID, "textures/model/backpack_overlay.png");
 
     public BackpackLayer(RenderLayerParent renderer, EntityModelSet entityModelSet) {
         super(renderer);
@@ -47,10 +44,6 @@ public class BackpackLayer<T extends LivingEntity, M extends HumanoidModel<T>> e
 
     public void render(PoseStack poseStack, MultiBufferSource buffer, int packedLight, T livingEntity, float limbSwing, float limbSwingAmount, float partialTicks, float ageInTicks, float headYaw, float headPitch) {
         ItemStack itemStack = livingEntity.getItemBySlot(EquipmentSlot.CHEST);
-
-
-
-
 
         if (shouldRender(itemStack, livingEntity)) {
             if (ModList.get().isLoaded("figura")) {
@@ -83,8 +76,15 @@ public class BackpackLayer<T extends LivingEntity, M extends HumanoidModel<T>> e
     private void renderBaseLayer(PoseStack poseStack, MultiBufferSource buffer, int packedLight, T livingEntity, float partialTicks, ItemStack itemStack, boolean copyPose) {
         poseStack.pushPose();
         float lidRot = 0;
-        boolean isOpen = livingEntity.getData(OPEN_COUNT) > 0;
-        int openTicks = livingEntity.getData(OPEN_TICKS);
+
+        int openCount = 0;
+        int openTicks = 0;
+        if (livingEntity instanceof BackpackWearer wearer) {
+            openCount = wearer.getBackpackOpenCount();
+            openTicks = wearer.getBackpackOpenTicks();
+        }
+
+        boolean isOpen = openCount > 0;
 
         if (isOpen && openTicks < 10) {
             float t = ((float)openTicks + partialTicks);
@@ -98,27 +98,36 @@ public class BackpackLayer<T extends LivingEntity, M extends HumanoidModel<T>> e
 
         this.model.getChild("base").getChild("lid").xRot = lidRot;
         if (copyPose) { this.model.copyFrom(parentBody); }
-        VertexConsumer vertexConsumer = ItemRenderer.getArmorFoilBuffer(buffer, RenderType.armorCutoutNoCull(TEXTURE), itemStack.hasFoil());
+        VertexConsumer vertexConsumer = ItemRenderer.getArmorFoilBuffer(buffer, RenderType.armorCutoutNoCull(TEXTURE), false, itemStack.hasFoil());
         this.model.render(poseStack, vertexConsumer, packedLight, OverlayTexture.NO_OVERLAY);
         renderColoredLayer(poseStack, buffer, packedLight, itemStack);
         poseStack.popPose();
     }
 
     private void renderColoredLayer(PoseStack poseStack, MultiBufferSource buffer, int packedLight, ItemStack itemStack) {
-        int i = DyedItemColor.getOrDefault(itemStack, 0);
-        if (FastColor.ARGB32.alpha(i) == 0) {
+        int color = getColor(itemStack);
+        if (color == 0) {
             return;
         }
 
-        VertexConsumer vertexConsumer = ItemRenderer.getArmorFoilBuffer(buffer, RenderType.armorCutoutNoCull(OVERLAY_TEXTURE), itemStack.hasFoil());
+        VertexConsumer vertexConsumer = ItemRenderer.getArmorFoilBuffer(buffer, RenderType.armorCutoutNoCull(OVERLAY_TEXTURE), false, itemStack.hasFoil());
 
-        this.model.render(poseStack, vertexConsumer, packedLight, OverlayTexture.NO_OVERLAY, FastColor.ARGB32.opaque(i));
+        float r = (float)(color >> 16 & 255) / 255.0F;
+        float g = (float)(color >> 8 & 255) / 255.0F;
+        float b = (float)(color & 255) / 255.0F;
+        this.model.render(poseStack, vertexConsumer, packedLight, OverlayTexture.NO_OVERLAY, r, g, b, 1.0F);
+    }
+
+    private static int getColor(ItemStack stack) {
+        CompoundTag tag = stack.getTagElement("display");
+        if (tag != null && tag.contains("color", 99)) {
+            return tag.getInt("color");
+        }
+        return 0;
     }
 
     public boolean shouldRender(ItemStack stack, T entity) {
-        return stack.getItem() == BPItems.BACKPACK.asItem();
-
-        //return true;
+        return stack.getItem() == BPItems.BACKPACK.get();
     }
 
 

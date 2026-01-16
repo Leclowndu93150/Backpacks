@@ -1,38 +1,24 @@
 package com.spydnel.backpacks.blocks;
 
-import com.spydnel.backpacks.Backpacks;
 import com.spydnel.backpacks.registry.BPBlockEntities;
 import com.spydnel.backpacks.registry.BPSounds;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
-import net.minecraft.core.component.DataComponentMap;
-import net.minecraft.core.component.DataComponentType;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.ContainerHelper;
-import net.minecraft.world.LockCode;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ShulkerBoxMenu;
+import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.DyedItemColor;
-import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.*;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
-import org.jetbrains.annotations.Nullable;
-
-import java.util.HashSet;
-import java.util.Set;
 
 public class BackpackBlockEntity extends RandomizableContainerBlockEntity {
     private NonNullList<ItemStack> itemStacks;
@@ -53,6 +39,11 @@ public class BackpackBlockEntity extends RandomizableContainerBlockEntity {
 
     public int getColor() {
         return color;
+    }
+
+    public void setColor(int color) {
+        this.color = color;
+        setChanged();
     }
 
     public boolean triggerEvent(int id, int type) {
@@ -88,7 +79,7 @@ public class BackpackBlockEntity extends RandomizableContainerBlockEntity {
             this.level.blockEvent(this.worldPosition, this.getBlockState().getBlock(), 1, openCount);
             if (this.openCount == 1) {
                 this.level.gameEvent(player, GameEvent.CONTAINER_OPEN, this.worldPosition);
-                this.level.playSound(null, this.getBlockPos(), BPSounds.BACKPACK_OPEN.value(), SoundSource.BLOCKS);
+                this.level.playSound(null, this.getBlockPos(), BPSounds.BACKPACK_OPEN.get(), SoundSource.BLOCKS, 1.0F, 1.0F);
             }
         }
     }
@@ -99,81 +90,72 @@ public class BackpackBlockEntity extends RandomizableContainerBlockEntity {
             this.level.blockEvent(this.worldPosition, this.getBlockState().getBlock(), 1, openCount);
             if (this.openCount <= 0) {
                 this.level.gameEvent(player, GameEvent.CONTAINER_CLOSE, this.worldPosition);
-                this.level.playSound(null, this.getBlockPos(), BPSounds.BACKPACK_CLOSE.value(), SoundSource.BLOCKS);
+                this.level.playSound(null, this.getBlockPos(), BPSounds.BACKPACK_CLOSE.get(), SoundSource.BLOCKS, 1.0F, 1.0F);
             }
         }
     }
 
 
+    @Override
     protected Component getDefaultName() {
         return Component.translatable("container.backpack");
     }
 
-
+    @Override
     protected NonNullList<ItemStack> getItems() {
         return this.itemStacks;
     }
 
+    @Override
     protected void setItems(NonNullList<ItemStack> items) {
         this.itemStacks = items;
     }
 
-
+    @Override
     protected AbstractContainerMenu createMenu(int id, Inventory player) {
-        return new ShulkerBoxMenu(id, player, this);
+        return ChestMenu.threeRows(id, player, this);
     }
 
+    @Override
     public ClientboundBlockEntityDataPacket getUpdatePacket() {
         return ClientboundBlockEntityDataPacket.create(this);
     }
 
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
-        this.loadFromTag(tag, registries);
+    @Override
+    public void load(CompoundTag tag) {
+        super.load(tag);
+        this.loadFromTag(tag);
     }
 
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    @Override
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
         if (!this.trySaveLootTable(tag)) {
-            ContainerHelper.saveAllItems(tag, this.itemStacks, false, registries);
+            ContainerHelper.saveAllItems(tag, this.itemStacks);
         }
         tag.putInt("FloatTicks", this.floatTicks);
         tag.putBoolean("NewlyPlaced", this.newlyPlaced);
         tag.putInt("Color", this.color);
-        setChanged();
     }
 
     @Override
-    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+    public CompoundTag getUpdateTag() {
         CompoundTag tag = new CompoundTag();
-
-        saveAdditional(tag, registries);
+        saveAdditional(tag);
         return tag;
     }
 
-    protected void applyImplicitComponents(BlockEntity.DataComponentInput componentInput) {
-        super.applyImplicitComponents(componentInput);
-        DyedItemColor dyedItemColor = componentInput.get(DataComponents.DYED_COLOR);
-        this.color = dyedItemColor != null ? dyedItemColor.rgb() : 0;
-    }
-
-    protected void collectImplicitComponents(DataComponentMap.Builder components) {
-        super.collectImplicitComponents(components);
-        if (color != 0) {
-            components.set(DataComponents.DYED_COLOR, new DyedItemColor(color, true));
-        }
-    }
-
-    public void loadFromTag(CompoundTag tag, HolderLookup.Provider levelRegistry) {
+    public void loadFromTag(CompoundTag tag) {
         this.itemStacks = NonNullList.withSize(this.getContainerSize(), ItemStack.EMPTY);
         if (!this.tryLoadLootTable(tag) && tag.contains("Items", 9)) {
-            ContainerHelper.loadAllItems(tag, this.itemStacks, levelRegistry);
+            ContainerHelper.loadAllItems(tag, this.itemStacks);
         }
         this.floatTicks = tag.getInt("FloatTicks");
         this.newlyPlaced = tag.getBoolean("NewlyPlaced");
         this.color = tag.getInt("Color");
     }
 
+    @Override
     public int getContainerSize() {
         return this.itemStacks.size();
     }

@@ -5,15 +5,13 @@ import com.spydnel.backpacks.registry.BPBlocks;
 import com.spydnel.backpacks.registry.BPItems;
 import com.spydnel.backpacks.registry.BPSounds;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.TraceableEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -23,12 +21,10 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.util.Objects;
-
 import static com.spydnel.backpacks.blocks.BackpackBlock.*;
 
 @Mixin(value = ItemEntity.class)
-public abstract class ItemEntityMixin extends Entity implements TraceableEntity {
+public abstract class ItemEntityMixin extends Entity {
 
     public ItemEntityMixin(EntityType<?> entityType, Level level) {
         super(entityType, level);
@@ -40,10 +36,19 @@ public abstract class ItemEntityMixin extends Entity implements TraceableEntity 
     )
     public void tick(CallbackInfo ci) {
         ItemStack itemStack = ((ItemEntity)(Object)this).getItem();
-        boolean hasContainer = itemStack.has(DataComponents.CONTAINER);
-        boolean isEmpty = Objects.equals(itemStack.get(DataComponents.CONTAINER), ItemContainerContents.EMPTY);
+        
+        boolean hasItems = false;
+        if (itemStack.hasTag()) {
+            CompoundTag tag = itemStack.getTag();
+            if (tag.contains("BlockEntityTag")) {
+                CompoundTag blockEntityTag = tag.getCompound("BlockEntityTag");
+                if (blockEntityTag.contains("Items")) {
+                    hasItems = !blockEntityTag.getList("Items", 10).isEmpty();
+                }
+            }
+        }
 
-        if (itemStack.is(BPItems.BACKPACK) && hasContainer && !isEmpty) {
+        if (itemStack.getItem() == BPItems.BACKPACK.get() && hasItems) {
             if (((ItemEntity)(Object)this).getAge() > 0) { ((ItemEntity)(Object)this).setExtendedLifetime(); }
 
             this.setDeltaMovement(this.getDeltaMovement().multiply(0.9, 1.0,0.9));
@@ -61,13 +66,19 @@ public abstract class ItemEntityMixin extends Entity implements TraceableEntity 
                         .setValue(FLOATING, level.getFluidState(pos).isSource() && !level.getFluidState(pos.above()).isSource())
                         .setValue(WATERLOGGED, level.getFluidState(pos.above()).getType() == Fluids.WATER);
 
-                BlockEntity blockEntity = new BackpackBlockEntity(pos.above(), state);
-                blockEntity.applyComponentsFromItemStack(itemStack);
-
                 if (!level.isClientSide) {
                     level.setBlockAndUpdate(pos.above(), state);
-                    level.setBlockEntity(blockEntity);
-                    level.playSound(null, pos.above(), BPSounds.BACKPACK_PLACE.value(), SoundSource.BLOCKS);
+                    BlockEntity blockEntity = level.getBlockEntity(pos.above());
+                    if (blockEntity instanceof BackpackBlockEntity backpackBlockEntity) {
+                        if (itemStack.hasTag() && itemStack.getTag().contains("BlockEntityTag")) {
+                            backpackBlockEntity.load(itemStack.getTag().getCompound("BlockEntityTag"));
+                        }
+                        CompoundTag displayTag = itemStack.getTagElement("display");
+                        if (displayTag != null && displayTag.contains("color", 99)) {
+                            backpackBlockEntity.setColor(displayTag.getInt("color"));
+                        }
+                    }
+                    level.playSound(null, pos.above(), BPSounds.BACKPACK_PLACE.get(), SoundSource.BLOCKS, 1.0F, 1.0F);
                 }
 
                 this.discard();

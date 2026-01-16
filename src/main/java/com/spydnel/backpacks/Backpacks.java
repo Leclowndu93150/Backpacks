@@ -1,70 +1,68 @@
 package com.spydnel.backpacks;
 
-import com.spydnel.backpacks.networking.BackpackOpenPayload;
-import com.spydnel.backpacks.networking.BackpackPayloadHandler;
+import com.spydnel.backpacks.networking.BackpackNetworking;
 import com.spydnel.backpacks.registry.*;
-import net.minecraft.client.renderer.item.ItemProperties;
-import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.DyedItemColor;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
-import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
-import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+import net.minecraft.world.item.CreativeModeTabs;
+import net.minecraft.world.item.DyeableLeatherItem;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.RegisterColorHandlersEvent;
+import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
 
-import net.minecraft.world.item.CreativeModeTabs;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
-
 @Mod(Backpacks.MODID)
-public class Backpacks
-{
+public class Backpacks {
     public static final String MODID = "backpacks";
-
     public static final Logger LOGGER = LogUtils.getLogger();
 
+    public Backpacks() {
+        FMLJavaModLoadingContext context = FMLJavaModLoadingContext.get();
+        IEventBus modEventBus = context.getModEventBus();
 
-    public Backpacks(IEventBus modEventBus, ModContainer modContainer)
-    {
-        modEventBus.register(Backpacks.class);
-
-        BPDataAttatchments.ATTACHMENT_TYPES.register(modEventBus);
         BPBlocks.BLOCKS.register(modEventBus);
         BPItems.ITEMS.register(modEventBus);
         BPBlockEntities.BLOCK_ENTITY_TYPES.register(modEventBus);
         BPSounds.SOUND_EVENTS.register(modEventBus);
+
+        modEventBus.addListener(this::commonSetup);
+        modEventBus.addListener(this::addCreative);
     }
 
-    @SubscribeEvent
-    public static void register(final RegisterPayloadHandlersEvent event) {
-        // Sets the current network version
-        final PayloadRegistrar registrar = event.registrar("1");
-        registrar.playToClient(
-                BackpackOpenPayload.TYPE,
-                BackpackOpenPayload.STREAM_CODEC,
-                BackpackPayloadHandler::HandleClientData
-        );
+    private void commonSetup(final FMLCommonSetupEvent event) {
+        event.enqueueWork(BackpackNetworking::register);
     }
 
-    @SubscribeEvent
-    public static void registerItemColorHandlers(RegisterColorHandlersEvent.Item event) {
-        event.register((stack, tintIndex) -> {
-                    return tintIndex == 0 ? -1 :DyedItemColor.getOrDefault(stack, -1);
-                },
-                BPItems.BACKPACK.value());
-    }
-
-    @SubscribeEvent
-    public static void addCreative(BuildCreativeModeTabContentsEvent event)
-    {
+    private void addCreative(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES)
             event.accept(BPItems.BACKPACK);
+    }
+
+    public static ResourceLocation id(String path) {
+        return new ResourceLocation(MODID, path);
+    }
+
+    @Mod.EventBusSubscriber(modid = MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+    public static class ClientModEvents {
+        @SubscribeEvent
+        public static void registerItemColorHandlers(RegisterColorHandlersEvent.Item event) {
+            event.register((stack, tintIndex) -> {
+                if (tintIndex == 0) {
+                    return -1;
+                }
+                CompoundTag tag = stack.getTagElement("display");
+                if (tag != null && tag.contains("color", 99)) {
+                    return tag.getInt("color");
+                }
+                return -1;
+            }, BPItems.BACKPACK.get());
+        }
     }
 }

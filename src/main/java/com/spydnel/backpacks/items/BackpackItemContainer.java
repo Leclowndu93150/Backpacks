@@ -1,22 +1,20 @@
 package com.spydnel.backpacks.items;
 
-import com.spydnel.backpacks.BackpackWearer;
-import com.spydnel.backpacks.Backpacks;
-import com.spydnel.backpacks.events.EntityInteractionEvents;
-import com.spydnel.backpacks.networking.BackpackOpenPayload;
+import com.spydnel.backpacks.networking.BackpackNetworking;
+import com.spydnel.backpacks.networking.BackpackOpenPacket;
 import com.spydnel.backpacks.registry.BPItems;
 import com.spydnel.backpacks.registry.BPSounds;
-import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.NonNullList;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.SimpleContainer;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.level.Level;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.network.PacketDistributor;
 
 public class BackpackItemContainer extends SimpleContainer {
     LivingEntity target;
@@ -30,32 +28,62 @@ public class BackpackItemContainer extends SimpleContainer {
         this.player = player;
         itemStack = target.getItemBySlot(EquipmentSlot.CHEST);
         level = target.level();
+
+        loadFromItem(itemStack);
+    }
+
+    private void loadFromItem(ItemStack stack) {
+        if (stack.hasTag() && stack.getTag().contains("BlockEntityTag")) {
+            CompoundTag blockEntityTag = stack.getTag().getCompound("BlockEntityTag");
+            if (blockEntityTag.contains("Items")) {
+                NonNullList<ItemStack> items = NonNullList.withSize(27, ItemStack.EMPTY);
+                ContainerHelper.loadAllItems(blockEntityTag, items);
+                for (int i = 0; i < items.size(); i++) {
+                    this.setItem(i, items.get(i));
+                }
+            }
+        }
+    }
+
+    private void saveToItem(ItemStack stack) {
+        NonNullList<ItemStack> items = NonNullList.withSize(27, ItemStack.EMPTY);
+        for (int i = 0; i < this.getContainerSize(); i++) {
+            items.set(i, this.getItem(i));
+        }
+
+        CompoundTag tag = stack.getOrCreateTag();
+        CompoundTag blockEntityTag = tag.contains("BlockEntityTag") ? tag.getCompound("BlockEntityTag") : new CompoundTag();
+        ContainerHelper.saveAllItems(blockEntityTag, items);
+        tag.put("BlockEntityTag", blockEntityTag);
     }
 
     public boolean stillValid(Player player) {
         return
                 target != null &&
-                itemStack.is(BPItems.BACKPACK) &&
-                itemStack.has(DataComponents.CONTAINER) &&
+                itemStack.getItem() == BPItems.BACKPACK.get() &&
                 player.distanceTo(target) < 5;
     }
 
     public void setChanged() {
-        target.getItemBySlot(EquipmentSlot.CHEST).set(DataComponents.CONTAINER, ItemContainerContents.fromItems(this.getItems()));
+        saveToItem(target.getItemBySlot(EquipmentSlot.CHEST));
         super.setChanged();
     }
 
     @Override
     public void startOpen(Player player) {
-        PacketDistributor.sendToPlayersTrackingEntityAndSelf(target, new BackpackOpenPayload(true, target.getId()));
-        target.level().playSound(null, target.blockPosition(), BPSounds.BACKPACK_OPEN.value(), SoundSource.PLAYERS);
+        if (!target.level().isClientSide) {
+            BackpackNetworking.INSTANCE.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> target), new BackpackOpenPacket(true, target.getId()));
+        }
+        target.level().playSound(null, target.blockPosition(), BPSounds.BACKPACK_OPEN.get(), SoundSource.PLAYERS, 1.0F, 1.0F);
         super.startOpen(player);
     }
 
     @Override
     public void stopOpen(Player player) {
-        PacketDistributor.sendToPlayersTrackingEntityAndSelf(target, new BackpackOpenPayload(false, target.getId()));
-        target.level().playSound(null, target.blockPosition(), BPSounds.BACKPACK_CLOSE.value(), SoundSource.PLAYERS);
+        if (!target.level().isClientSide) {
+            BackpackNetworking.INSTANCE.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> target), new BackpackOpenPacket(false, target.getId()));
+        }
+        target.level().playSound(null, target.blockPosition(), BPSounds.BACKPACK_CLOSE.get(), SoundSource.PLAYERS, 1.0F, 1.0F);
         super.stopOpen(player);
     }
 }

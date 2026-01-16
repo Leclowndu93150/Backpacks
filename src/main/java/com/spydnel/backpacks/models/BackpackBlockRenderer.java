@@ -17,24 +17,19 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.core.Direction;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.FastColor;
 import net.minecraft.util.Mth;
-import net.minecraft.world.item.component.DyedItemColor;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
-import net.neoforged.fml.ModList;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.fml.ModList;
 
 @OnlyIn(Dist.CLIENT)
 public class BackpackBlockRenderer implements BlockEntityRenderer<BackpackBlockEntity> {
 
-    private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(Backpacks.MODID, "textures/entity/backpack.png");
-    private static final ResourceLocation OVERLAY_TEXTURE = ResourceLocation.fromNamespaceAndPath(Backpacks.MODID, "textures/entity/backpack_overlay.png");
-    private static final ResourceLocation BASE_TEXTURE = ResourceLocation.fromNamespaceAndPath(Backpacks.MODID, "textures/entity/backpack_base.png");
+    private static final ResourceLocation TEXTURE = new ResourceLocation(Backpacks.MODID, "textures/entity/backpack.png");
+    private static final ResourceLocation OVERLAY_TEXTURE = new ResourceLocation(Backpacks.MODID, "textures/entity/backpack_overlay.png");
+    private static final ResourceLocation BASE_TEXTURE = new ResourceLocation(Backpacks.MODID, "textures/entity/backpack_base.png");
     private final ModelPart base;
     private final ModelPart lid;
 
@@ -121,8 +116,8 @@ public class BackpackBlockRenderer implements BlockEntityRenderer<BackpackBlockE
     }
 
     private void renderColoredLayer(BackpackBlockEntity blockEntity, PoseStack poseStack, MultiBufferSource buffer, int packedLight, int packedOverlay) {
-        int i = FastColor.ARGB32.opaque(blockEntity.getColor());
-        if (FastColor.ARGB32.alpha(i) == 0) {
+        int color = blockEntity.getColor();
+        if (color == 0) {
             return;
         }
         ResourceLocation location = OVERLAY_TEXTURE;
@@ -131,9 +126,12 @@ public class BackpackBlockRenderer implements BlockEntityRenderer<BackpackBlockE
             irisCompatStuff(location);
         }
 
+        float r = (float)(color >> 16 & 255) / 255.0F;
+        float g = (float)(color >> 8 & 255) / 255.0F;
+        float b = (float)(color & 255) / 255.0F;
+
         VertexConsumer vertexConsumer = buffer.getBuffer(RenderType.entityCutoutNoCull(OVERLAY_TEXTURE));
-        this.base.render(poseStack, vertexConsumer, packedLight, packedOverlay, FastColor.ARGB32.opaque(i));
-        //poseStack.popPose();
+        this.base.render(poseStack, vertexConsumer, packedLight, packedOverlay, r, g, b, 1.0F);
     }
 
     private void irisCompatStuff(ResourceLocation location) {

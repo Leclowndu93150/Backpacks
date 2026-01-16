@@ -5,7 +5,8 @@ bin
 .metadata
 .classpath
 .project
-
+Minecraft-Source-1.20.1
+MinecraftForge-1.20.1
 # idea
 out
 *.ipr

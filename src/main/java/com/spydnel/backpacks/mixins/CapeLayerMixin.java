@@ -19,6 +19,6 @@ public abstract class CapeLayerMixin {
             cancellable = true
     )
     public void render(PoseStack poseStack, MultiBufferSource buffer, int packedLight, AbstractClientPlayer livingEntity, float limbSwing, float limbSwingAmount, float partialTicks, float ageInTicks, float netHeadYaw, float headPitch, CallbackInfo ci) {
-        if (livingEntity.getItemBySlot(EquipmentSlot.CHEST).is(BPItems.BACKPACK)) {ci.cancel();}
+        if (livingEntity.getItemBySlot(EquipmentSlot.CHEST).is(BPItems.BACKPACK.get())) {ci.cancel();}
     }
 }

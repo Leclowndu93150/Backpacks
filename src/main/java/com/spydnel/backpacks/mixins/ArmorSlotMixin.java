@@ -1,24 +1,25 @@
 package com.spydnel.backpacks.mixins;
 
 import com.spydnel.backpacks.registry.BPItems;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.world.Container;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.ItemContainerContents;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.util.Objects;
+@Mixin(Slot.class)
+public abstract class ArmorSlotMixin {
 
-@Mixin(targets = "net.minecraft.world.inventory.ArmorSlot")
-public abstract class ArmorSlotMixin extends Slot {
-    public ArmorSlotMixin(Container container, int slot, int x, int y) {
-        super(container, slot, x, y);
-    }
+    @Shadow
+    public abstract ItemStack getItem();
+
+    @Shadow
+    public int index;
 
     @Inject(
             method = "mayPickup",
@@ -26,9 +27,35 @@ public abstract class ArmorSlotMixin extends Slot {
             cancellable = true
     )
     public void mayPickup(Player player, CallbackInfoReturnable<Boolean> cir) {
+        Slot self = (Slot)(Object)this;
+
+        if (!(self.container instanceof Inventory)) {
+            return;
+        }
+
+        int inventoryIndex = self.getContainerSlot();
+        if (inventoryIndex < 36 || inventoryIndex > 39) {
+            return;
+        }
+
         ItemStack item = this.getItem();
-        boolean hasContainer = item.has(DataComponents.CONTAINER);
-        boolean isEmpty = Objects.equals(item.get(DataComponents.CONTAINER), ItemContainerContents.EMPTY);
-        if (item.is(BPItems.BACKPACK) && hasContainer && !isEmpty) { cir.setReturnValue(false); }
+        if (item.getItem() != BPItems.BACKPACK.get()) {
+            return;
+        }
+
+        boolean hasItems = false;
+        if (item.hasTag()) {
+            CompoundTag tag = item.getTag();
+            if (tag.contains("BlockEntityTag")) {
+                CompoundTag blockEntityTag = tag.getCompound("BlockEntityTag");
+                if (blockEntityTag.contains("Items")) {
+                    hasItems = !blockEntityTag.getList("Items", 10).isEmpty();
+                }
+            }
+        }
+
+        if (hasItems) {
+            cir.setReturnValue(false);
+        }
     }
 }

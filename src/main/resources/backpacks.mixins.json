@@ -1,7 +1,6 @@
 {
   "required": true,
   "package": "com.spydnel.backpacks.mixins",
-  "plugin": "com.moulberry.mixinconstraints.ConstraintsMixinPlugin",
   "mixins": [
     "ArmorSlotMixin",
     "ItemEntityMixin",
