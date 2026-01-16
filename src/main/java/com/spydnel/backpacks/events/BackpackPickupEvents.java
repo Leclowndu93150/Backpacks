@@ -61,6 +61,7 @@ public class BackpackPickupEvents {
             ItemStack itemstack = new ItemStack(BPBlocks.BACKPACK.get());
 
             CompoundTag blockEntityTag = backpackBlockEntity.saveWithoutMetadata();
+            blockEntityTag.remove("Color");
             if (!blockEntityTag.isEmpty()) {
                 itemstack.getOrCreateTag().put("BlockEntityTag", blockEntityTag);
             }

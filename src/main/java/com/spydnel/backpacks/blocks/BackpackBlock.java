@@ -19,6 +19,9 @@ import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.entity.*;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
@@ -134,6 +137,21 @@ public class BackpackBlock extends BaseEntityBlock implements Equipable, EntityB
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new BackpackBlockEntity(pos, state);
+    }
+
+    @Override
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (blockEntity instanceof BackpackBlockEntity backpackBlockEntity) {
+            if (stack.hasTag() && stack.getTag().contains("BlockEntityTag")) {
+                backpackBlockEntity.load(stack.getTag().getCompound("BlockEntityTag"));
+            }
+            CompoundTag displayTag = stack.getTagElement("display");
+            if (displayTag != null && displayTag.contains("color", 99)) {
+                backpackBlockEntity.setColor(displayTag.getInt("color"));
+            }
+        }
     }
 
     @Override
