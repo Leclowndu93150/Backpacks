@@ -23,7 +23,7 @@ public class BackpackItemContainer extends SimpleContainer {
     Level level;
 
     public BackpackItemContainer(LivingEntity target, Player player) {
-        super(27);
+        super(54);
         this.target = target;
         this.player = player;
         itemStack = target.getItemBySlot(EquipmentSlot.CHEST);
@@ -36,7 +36,7 @@ public class BackpackItemContainer extends SimpleContainer {
         if (stack.hasTag() && stack.getTag().contains("BlockEntityTag")) {
             CompoundTag blockEntityTag = stack.getTag().getCompound("BlockEntityTag");
             if (blockEntityTag.contains("Items")) {
-                NonNullList<ItemStack> items = NonNullList.withSize(27, ItemStack.EMPTY);
+                NonNullList<ItemStack> items = NonNullList.withSize(54, ItemStack.EMPTY);
                 ContainerHelper.loadAllItems(blockEntityTag, items);
                 for (int i = 0; i < items.size(); i++) {
                     this.setItem(i, items.get(i));
@@ -46,7 +46,7 @@ public class BackpackItemContainer extends SimpleContainer {
     }
 
     private void saveToItem(ItemStack stack) {
-        NonNullList<ItemStack> items = NonNullList.withSize(27, ItemStack.EMPTY);
+        NonNullList<ItemStack> items = NonNullList.withSize(54, ItemStack.EMPTY);
         for (int i = 0; i < this.getContainerSize(); i++) {
             items.set(i, this.getItem(i));
         }

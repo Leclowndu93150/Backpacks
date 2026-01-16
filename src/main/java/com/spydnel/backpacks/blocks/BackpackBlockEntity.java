@@ -32,7 +32,7 @@ public class BackpackBlockEntity extends RandomizableContainerBlockEntity {
 
     public BackpackBlockEntity(BlockPos pos, BlockState blockState) {
         super(BPBlockEntities.BACKPACK.get(), pos, blockState);
-        this.itemStacks = NonNullList.withSize(27, ItemStack.EMPTY);
+        this.itemStacks = NonNullList.withSize(54, ItemStack.EMPTY);
         this.newlyPlaced = true;
     }
 
@@ -113,7 +113,7 @@ public class BackpackBlockEntity extends RandomizableContainerBlockEntity {
 
     @Override
     protected AbstractContainerMenu createMenu(int id, Inventory player) {
-        return ChestMenu.threeRows(id, player, this);
+        return ChestMenu.sixRows(id, player, this);
     }
 
     @Override

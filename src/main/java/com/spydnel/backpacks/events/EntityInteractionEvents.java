@@ -30,7 +30,7 @@ public class EntityInteractionEvents {
         if (target != null && item != null && item.getItem() == BPItems.BACKPACK.get() && isBehind(player, target)) {
             BackpackItemContainer container = new BackpackItemContainer(target, player);
             player.openMenu(new SimpleMenuProvider(
-                    (containerId, playerInventory, p) -> ChestMenu.threeRows(containerId, playerInventory, container),
+                    (containerId, playerInventory, p) -> ChestMenu.sixRows(containerId, playerInventory, container),
                     Component.translatable("container.backpack")
             ));
             event.setCancellationResult(InteractionResult.CONSUME);
